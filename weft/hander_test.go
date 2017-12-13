@@ -364,6 +364,7 @@ func TestGzip(t *testing.T) {
 
 	req = httptest.NewRequest("GET", "http://example.com/foo", nil)
 	req.Header.Set("Accept-Encoding", "gzip")
+	req.Header.Set("Accept", "application/vnd.geo+json;version=2")
 	w = httptest.NewRecorder()
 	handler(w, req)
 
@@ -376,6 +377,36 @@ func TestGzip(t *testing.T) {
 	}
 
 	if w.Header().Get("Content-Type") != "text/html; charset=utf-8" {
+		t.Error("incorrect content type")
+	}
+}
+
+func TestGzip2(t *testing.T) {
+	fn := func(r *http.Request, h http.Header, b *bytes.Buffer) error {
+		// write some content to test encoding sniffing and gzip
+		b.Write([]byte(weft.ErrNotFound))
+
+		h.Set("Content-Type", "application/vnd.geo+json;version=2")
+
+		return nil
+	}
+
+	handler := weft.MakeHandler(fn, weft.TextError)
+
+	req := httptest.NewRequest("GET", "http://example.com/foo", nil)
+	req.Header.Set("Accept-Encoding", "gzip")
+	w := httptest.NewRecorder()
+	handler(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected %d got %d", http.StatusOK, w.Code)
+	}
+
+	if w.Header().Get("Content-Encoding") != "gzip" {
+		t.Error("expected encoded content")
+	}
+
+	if w.Header().Get("Content-Type") != "application/vnd.geo+json;version=2" {
 		t.Error("incorrect content type")
 	}
 }
